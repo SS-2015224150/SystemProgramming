@@ -16,12 +16,13 @@ void show_file_info(char *filename, struct stat *info_p);
 void mode_to_letters(int mode, char str[]);
 char *uid_to_name(uid_t uid);
 char *gid_to_name(gid_t gid);
+void sort_string_array(char (*array)[PATHLEN] , int);
 
-
+char* PROGRAM_NAME ;
 int main(int ac, char *av[])
 {
     int flag = 0 ;
-
+    PROGRAM_NAME = av[0];
     if(ac > 1 && strcmp(av[1] , "-R") == 0)
     {
         flag = 1;
@@ -34,14 +35,12 @@ int main(int ac, char *av[])
         do_ls("." , flag);
     else if(ac == 2)
     {
-        printf("%s: \n", *av);
         do_ls(*av , flag);
     }
     else
         while(--ac)
         {
-            printf("%s: \n", *++av);
-            do_ls(*av++ , flag);
+            do_ls(*(++av) , flag);
         }
 
     return 0;
@@ -51,33 +50,47 @@ void do_ls(char dirname[] , int flag)
 {
     DIR *dir_ptr;
     struct dirent *direntp;
-    int count ;
+    int count , dirCount;
     int i;
     char path[PATHLEN];
-    char arr[200][PATHLEN] ;
+    char arr[255][PATHLEN] ;
+    char directory[255];
 
-    if((dir_ptr = opendir(dirname)) == NULL)
-        fprintf(stderr, "ls1: cannot open %s\n", dirname);
+    if((dir_ptr = opendir(dirname)) == NULL){
+        fprintf(stderr , "ls2: %s 디렉터리를 열 수 없음: 허가 거부\n" , dirname);
+        return;
+    }
     else
     {
+        puts("");
+        puts(dirname);
         count = 0;
         while((direntp = readdir(dir_ptr)) != NULL)
+            strcpy(arr[count++] , direntp->d_name);
+
+        closedir(dir_ptr);
+
+        sort_string_array(arr , count);
+
+        dirCount = 0;
+        for(i=0 ; i<count ; i++)
         {
             strcpy(path , dirname);
             strcat(path , "/");
-            strcat(path , direntp->d_name);
-            if(dostat(path) == 1 && strcmp("." , direntp->d_name) != 0 && strcmp(".." , direntp->d_name) != 0)
-                strcpy(arr[count++] , path);
+            strcat(path , arr[i]);
+            if(dostat(path) == 1 && strcmp("." , arr[i]) != 0 && strcmp(".." , arr[i]) != 0)
+                directory[dirCount++] = i;
         }
-        closedir(dir_ptr);
     }
 
-    puts("");
-    for(i=0; i<count && flag ;i++)
+
+    for(i=0; i<dirCount && flag ;i++)
     {
-        puts(arr[i]);
-        do_ls(arr[i] , 0);
-        puts("");
+        strcpy(path , dirname);
+        strcat(path , "/");
+        strcat(path , arr[(int)directory[i]]);
+
+        do_ls(path , 1);
     }
 
 }
@@ -99,6 +112,7 @@ void show_file_info(char *filename, struct stat *info_p)
     char *uid_to_name(), *ctime(), *gid_to_name(), *filemode();
     void mode_to_letters();
     char modestr[11];
+    int i;
 
     mode_to_letters(info_p -> st_mode, modestr);
 
@@ -108,7 +122,12 @@ void show_file_info(char *filename, struct stat *info_p)
     printf("%-8s ", gid_to_name(info_p -> st_gid));
     printf("%8ld ", (long)info_p -> st_size);
     printf("%.12s ", 4+ctime(&info_p -> st_mtime));
-    printf("%s\n", filename);
+    for(i = strlen(filename) - 1; i>=0 ; i--)
+    {
+        if(filename[i] == '/')
+            break;
+    }
+    printf("%s\n", &filename[i+1]);
 
 }
 
@@ -172,3 +191,22 @@ char *gid_to_name(gid_t gid)
     else
         return grp_ptr -> gr_name;
 }
+
+void sort_string_array(char (*array)[PATHLEN] , int count)
+{
+    int i , j ;
+    char path[PATHLEN] ;
+    for(i = count-1 ; i > 0 ; i--)
+    {
+        for(j=0 ; j<i ; j++)
+        {
+            if(strcmp(array[j] , array[j+1]) > 0)
+            {
+                strcpy(path , array[j]);
+                strcpy(array[j] , array[j+1]);
+                strcpy(array[j+1] , path);
+            }
+        }
+    }
+}
+
