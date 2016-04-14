@@ -1,0 +1,1 @@
+write a version of mv that accept two arguments. The first argument must be the same of a file, and the second argument may be the name of a file or the name of a directory.l If the destination is the name of directory, then mv moves the file into that directory. Otherwise mv renames the file if possible.
